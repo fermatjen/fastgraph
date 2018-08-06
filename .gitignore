@@ -1,0 +1,6 @@
+/nbproject/private/
+src/main/java/fj/fastgraph/TestFastGraph.java
+*.xml
+*.mf
+*.properties
+/build/

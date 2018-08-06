@@ -19,10 +19,7 @@ package fj.fastgraph;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
-import java.io.FileOutputStream;
 import java.io.IOException;
-import java.io.ObjectInputStream;
-import java.io.ObjectOutputStream;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -52,6 +49,11 @@ public class FastGraph {
     //For fast neighbor finding
     private LinkedHashMap<Integer, ArrayList> edgesHelper = new LinkedHashMap();
 
+    /**
+     * Initialize the graph with 2 files vertices and edges
+     * @param verticesFile A file containing comma-separated list of vertices ID and vertices name
+     * @param edgesFile A file containing comma-separated list of two vertices ID. For example, one row could be 25432, 1276287
+     */
     public FastGraph(File verticesFile, File edgesFile) {
 
         FileInputStream fis;
@@ -63,7 +65,7 @@ public class FastGraph {
                 String line = scanner.nextLine();
 
                 String token = ",";
-                if(!line.contains(token)){
+                if (!line.contains(token)) {
                     token = " ";
                 }
                 StringTokenizer stok = new StringTokenizer(line, token);
@@ -85,7 +87,7 @@ public class FastGraph {
             while (scanner.hasNextLine()) {
                 String line = scanner.nextLine();
                 String token = ",";
-                if(!line.contains(token)){
+                if (!line.contains(token)) {
                     token = " ";
                 }
                 StringTokenizer stok = new StringTokenizer(line, token);
@@ -94,8 +96,8 @@ public class FastGraph {
                 //System.out.println(VID1+":"+VID2);
 
                 LinkedHashMap edgesMap = new LinkedHashMap();
-                edgesMap.put("Source", VID1);
-                edgesMap.put("Dest", VID2);
+                edgesMap.put("S", VID1);
+                edgesMap.put("D", VID2);
 
                 //Find the correct EID to remove duplicate EIDs
                 String edgeToken1 = VID1 + ":" + VID2;
@@ -117,16 +119,16 @@ public class FastGraph {
                 if (TEID != EID) {
                     //addweights
                     LinkedHashMap existingEdgesMap = edges.get(TEID);
-                    int eweight = (int) existingEdgesMap.get("Weight");
+                    int eweight = (int) existingEdgesMap.get("W");
                     eweight++;
                     //System.out.println("Updating weight of edge "+TEID+" ("+VID1+":"+VID2+") by "+eweight);
-                    existingEdgesMap.remove("Weight");
-                    existingEdgesMap.put("Weight", eweight);
+                    existingEdgesMap.remove("W");
+                    existingEdgesMap.put("W", eweight);
                     edges.remove(TEID);
                     edges.put(TEID, existingEdgesMap);
                 } else {
                     //First edge
-                    edgesMap.put("Weight", 1);
+                    edgesMap.put("W", 1);
                     edges.put(TEID, edgesMap);
                 }
 
@@ -162,14 +164,20 @@ public class FastGraph {
 
             fis.close();
 
-            System.out.println("Graph populated with " + vertices.size() + " vertices and " + edges.size() + " edges! and edges strength of " + edgesHelper.size());
+            //System.out.println("Graph populated with " + vertices.size() + " vertices and " + edges.size() + " edges! and edges strength of " + edgesHelper.size());
         } catch (FileNotFoundException ex) {
-            Logger.getLogger(FJGraph.class.getName()).log(Level.SEVERE, null, ex);
+            Logger.getLogger(FastGraph.class.getName()).log(Level.SEVERE, null, ex);
         } catch (IOException ex) {
-            Logger.getLogger(FJGraph.class.getName()).log(Level.SEVERE, null, ex);
+            Logger.getLogger(FastGraph.class.getName()).log(Level.SEVERE, null, ex);
         }
     }
 
+    /**
+     * Get the ID of the vertex by its name
+     * @param line The name of the vertex
+     * @param patternMatch Should vertex name be pattern-matched if the exact vertex name is not available?
+     * @return Returns vertex ID
+     */
     public Integer getVertexByName(String line, boolean patternMatch) {
 
         if (!reverse_vertices.containsKey(line)) {
@@ -190,6 +198,11 @@ public class FastGraph {
 
     }
 
+    /**
+     * Get the vertex name from its ID
+     * @param VID The vertex ID
+     * @return The vertex name
+     */
     public String getVertexByID(int VID) {
         if (!vertices.containsKey(VID)) {
             return null;
@@ -198,22 +211,54 @@ public class FastGraph {
         }
     }
 
-    public LinkedHashMap getEdgesMap(int EID) {
+    /**
+     * Get all the connections for the edge denoted by this edge ID
+     * @param EID The Edge ID
+     * @return A LinkedHashMap containing the Source VID, Destination VID and the connection weight
+     */
+    public LinkedHashMap getVerticesForEdge(int EID) {
         return edges.get(EID);
     }
+    
+     /**
+     * Get all the edges for the vertex denoted by this vertex ID
+     * @param VID The Vertex ID
+     * @return An ArrayList containing the list of all Edge IDs
+     */
+    public ArrayList getAllEdgesForVertex(int VID){
+        return edgesHelper.get(VID);
+    }
 
+    /**
+     * Get the vertices count for the graph
+     * @return The vertices count
+     */
     public int getVerticesSize() {
         return vertices.size();
     }
 
+    /**
+     * Get the edges size for the graph
+     * @return The edges size
+     */
     public int getEdgesSize() {
         return edges.size();
     }
 
+    /**
+     * Find the number of triangles for this vertex
+     * @param VID1 The vertex ID
+     * @return The number of triangles connecting to this vertex
+     */
     public int countTrianglesForVertex(int VID1) {
         return getTrianglesForVertex(VID1).size();
     }
 
+    /**
+     * Find all the triangles for this vertex
+     * @param VID1 The vertex ID
+     * @return An ArrayList of ArrayLIst containing all the cyclic paths. The paths are denoted by vertex IDs. Use getVertexByID method to get the vertex name.
+     */
     public ArrayList getTrianglesForVertex(int VID1) {
         //Get all cyclic paths, if any
         ArrayList<ArrayList> cyclicPaths = new ArrayList();
@@ -228,8 +273,8 @@ public class FastGraph {
             int EID = (int) edgesList.get(i);
             //Get vertices for this edge
             LinkedHashMap edgesMap = (LinkedHashMap) edges.get(EID);
-            int sourceID = (int) edgesMap.get("Source");
-            int destID = (int) edgesMap.get("Dest");
+            int sourceID = (int) edgesMap.get("S");
+            int destID = (int) edgesMap.get("D");
 
             int neighborID = -1;
             if (sourceID == VID1) {
@@ -249,8 +294,8 @@ public class FastGraph {
                 int EID2 = (int) edgesList2.get(j);
                 //Get vertices for this edge
                 LinkedHashMap edgesMap2 = (LinkedHashMap) edges.get(EID2);
-                int sourceID2 = (int) edgesMap2.get("Source");
-                int destID2 = (int) edgesMap2.get("Dest");
+                int sourceID2 = (int) edgesMap2.get("S");
+                int destID2 = (int) edgesMap2.get("D");
 
                 int neighborID2 = -1;
                 if (sourceID2 == neighborID) {
@@ -289,10 +334,18 @@ public class FastGraph {
         return cyclicPaths;
     }
 
+    /**
+     * Count the number of triangles for this graph
+     * @return The number of triangles present in this graph
+     */
     public int countTriangles() {
         return getAllTriangles().size();
     }
 
+    /**
+     * Get all the triangles present in this graph
+     * @return An ArrayList of ArrayList containing all the triangles in this graph. The paths are denoted by vertex IDs. Use getVertexByID method to get the vertex name.
+     */
     public ArrayList getAllTriangles() {
         //Get all cyclic paths, if any
         ArrayList<ArrayList> cyclicPaths = new ArrayList();
@@ -312,8 +365,8 @@ public class FastGraph {
                 int EID = (int) edgesList.get(i);
                 //Get vertices for this edge
                 LinkedHashMap edgesMap = (LinkedHashMap) edges.get(EID);
-                int sourceID = (int) edgesMap.get("Source");
-                int destID = (int) edgesMap.get("Dest");
+                int sourceID = (int) edgesMap.get("S");
+                int destID = (int) edgesMap.get("D");
 
                 int neighborID = -1;
                 if (sourceID == VID1) {
@@ -332,8 +385,8 @@ public class FastGraph {
                     int EID2 = (int) edgesList2.get(j);
                     //Get vertices for this edge
                     LinkedHashMap edgesMap2 = (LinkedHashMap) edges.get(EID2);
-                    int sourceID2 = (int) edgesMap2.get("Source");
-                    int destID2 = (int) edgesMap2.get("Dest");
+                    int sourceID2 = (int) edgesMap2.get("S");
+                    int destID2 = (int) edgesMap2.get("D");
 
                     int neighborID2 = -1;
                     if (sourceID2 == neighborID) {
@@ -373,6 +426,12 @@ public class FastGraph {
         return cyclicPaths;
     }
 
+    /**
+     * Get the weigh of the edge between 2 vertices
+     * @param VID1 Vertex 1
+     * @param VID2 Vertex 2
+     * @return The weight or the connection strength between these 2 vertices
+     */
     public int getWeightofEdge(int VID1, int VID2) {
         //Get weight between edges
         if (VID1 == -1 || VID2 == -1) {
@@ -385,14 +444,14 @@ public class FastGraph {
         for (int i = 0; i < edgeCandidates.size(); i++) {
             int EID = edgeCandidates.get(i);
             LinkedHashMap edgesMap = (LinkedHashMap) edges.get(EID);
-            int sourceID = (int) edgesMap.get("Source");
-            int destID = (int) edgesMap.get("Dest");
+            int sourceID = (int) edgesMap.get("S");
+            int destID = (int) edgesMap.get("D");
 
             if (sourceID == VID1 && destID == VID2) {
-                return (int) edgesMap.get("Weight");
+                return (int) edgesMap.get("W");
             }
             if (sourceID == VID2 && destID == VID1) {
-                return (int) edgesMap.get("Weight");
+                return (int) edgesMap.get("W");
             }
 
         }
@@ -400,13 +459,29 @@ public class FastGraph {
         return -1;
     }
 
+    /**
+     * Get the count of edges for the vertex denoted by its ID
+     * @param VID The vertex ID
+     * @return The total number of edges for this vertex ID
+     */
     public int getEdgesCountForVertex(int VID) {
         return getNumOfNeighbors(VID);
     }
 
-    public int getDegreeForVertex(int VID){
+    /**
+     * Get the count of edges for the vertex denoted by its ID
+     * @param VID The vertex ID
+     * @return The total number of edges for this vertex ID
+     */
+    public int getDegreeForVertex(int VID) {
         return getNumOfNeighbors(VID);
     }
+
+    /**
+     * Get the total number of neighbors for a vertex
+     * @param VID The vertex ID
+     * @return The count of neighbors (vertices) for this vertex
+     */
     public int getNumOfNeighbors(int VID) {
         //Try edgesHelper
         if (VID == -1) {
@@ -417,7 +492,12 @@ public class FastGraph {
         //Another way
         //return (findNeighbors(VID, 1, false)).size();
     }
-    
+
+    /**
+     * Ranking algorithm. Get the best ranked vertices in this graph based on the triangles count
+     * @param maxVertices The maximum number of vertices to be returned. For example, 20, indicates, top 20 ranked vertices.
+     * @return A sorted map containing (Vertex ID, Rank) containing the top-ranked vertices and their ranks.
+     */
     public Map getRankByTrianglesCount(int maxVertices) {
         LinkedHashMap rankedMap = new LinkedHashMap();
         //Faster way
@@ -446,7 +526,11 @@ public class FastGraph {
 
     }
 
-
+    /**
+     * Ranking algorithm. Get the best ranked vertices in this graph based on edges count.
+     * @param maxVertices The maximum number of vertices to be returned. For example, 20, indicates, top 20 ranked vertices.
+     * @return A sorted map containing (Vertex ID, Rank) containing the top-ranked vertices and their ranks.
+     */
     public Map getRankByEdgesCount(int maxVertices) {
         LinkedHashMap rankedMap = new LinkedHashMap();
         //Faster way
@@ -484,17 +568,51 @@ public class FastGraph {
 
     }
 
-    public ArrayList getLongestTrail(int VID, int depth) {
+    /**
+     * Get the best trail (path) length for this vertex
+     * @param VID The vertex ID
+     * @param depth The maximum depth (hops) of search
+     * @return The count of hops after which teh path ends
+     */
+    public int getBestTrailLength(int VID, int depth) {
+        return getBestTrail(VID, depth, false).size();
+    }
 
-        ArrayList<String> longPathList = new ArrayList();
-        //Not implemented
-        return longPathList;
+    /**
+     * Get the best trail (path) in the graph
+     * @param depth The maximum depth (hops) of search
+     * @return A LinkedHashMap (VID, ArrayList of paths) representing the best trail in the graph.
+     */
+    public LinkedHashMap getBestTrailInGraph(int depth) {
+
+        ArrayList path = new ArrayList();
+        int bestVID = -1;
+
+        for (int VID : vertices.keySet()) {
+            ArrayList bestTrail = getBestTrail(VID, depth, false);
+            System.out.println(VID + ": " + bestTrail.size());
+            if (bestTrail.size() > path.size()) {
+                path = bestTrail;
+                bestVID = VID;
+            }
+        }
+
+        LinkedHashMap<Integer, ArrayList> bestTrail = new LinkedHashMap();
+        bestTrail.put(bestVID, path);
+        return bestTrail;
 
     }
 
+    /**
+     * Get the best trail (path) for this vertex
+     * @param VID The Vertex ID
+     * @param depth The maximum depth (hops) of search
+     * @param sortByWeights Should the connections be sorted by its weight?
+     * @return An ArrayList (Vertex IDs) containing the vertices of the trail.
+     */
     public ArrayList getBestTrail(int VID, int depth, boolean sortByWeights) {
 
-        ArrayList<String> strongPathList = new ArrayList();
+        ArrayList<Integer> strongPathList = new ArrayList();
         if (VID == -1) {
             return strongPathList;
         }
@@ -505,16 +623,16 @@ public class FastGraph {
             //One hop only
             //System.out.println("HOP: "+i+" with "+SVID);
             Map neighbors = findNeighbors(SVID, 1, sortByWeights);
+            //System.out.println(neighbors.toString());
 
             Iterator iter = neighbors.keySet().iterator();
             while (iter.hasNext()) {
-                String neighbor = (String) iter.next();
-                SVID = getVertexByName(neighbor, false);
+                SVID = (int) iter.next();
                 if (!visitedList.contains(SVID)) {
                     visitedList.add(SVID);
                     if (SVID != VID) {
                         //System.out.println(SVID + ":" + VID + "  " + neighbor);
-                        strongPathList.add(neighbor);
+                        strongPathList.add(SVID);
                     }
                     break;
                 }
@@ -526,6 +644,14 @@ public class FastGraph {
 
     }
 
+    /**
+     * Find the best path between 2 vertices. A long-running operation for massive graphs. Only 20 hops are made.
+     * @param VID1 Vertex I
+     * @param VID2 Vertex 2
+     * @param depth The maximum depth (hops) of search
+     * @param sortByWeights Should the connections be sorted by its weight?
+     * @return An ArrayList of vertex IDs denoting the path between the 2 given vertices
+     */
     public ArrayList findPathBetweenVertices(int VID1, int VID2, int depth, boolean sortByWeights) {
         ArrayList paths = new ArrayList();
         if (VID1 == -1 || VID2 == -1) {
@@ -1102,6 +1228,13 @@ public class FastGraph {
         }
     }
 
+    /**
+     * Find all neighbors (immediate inbound and outbound vertices) for a Vertex
+     * @param VID The Vertex ID
+     * @param depth Maximum hops
+     * @param sortByWeights Should the path be taken based on edge weights
+     * @return A map (Vertex ID, Weight of edges) containing the neighbors and their connection strengths
+     */
     public Map findNeighbors(int VID, int depth, boolean sortByWeights) {
         //System.out.println("Looking for neighbors for "+VID+" at depth "+depth);
         HashMap<Integer, Integer> neighbors = new HashMap();
@@ -1119,9 +1252,9 @@ public class FastGraph {
             //Check if this edge can be skipped
             if (!(canSkipEdgeForVertex(VID, EID))) {
                 LinkedHashMap connections = edges.get(EID);
-                int sourceID = (int) connections.get("Source");
-                int destID = (int) connections.get("Dest");
-                int weight = (int) connections.get("Weight");
+                int sourceID = (int) connections.get("S");
+                int destID = (int) connections.get("D");
+                int weight = (int) connections.get("W");
                 //System.out.println(VID+" -> "+sourceID+":"+destID);
                 if (sourceID == VID) {
                     //Hit
