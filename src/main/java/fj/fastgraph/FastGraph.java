@@ -19,6 +19,7 @@ package fj.fastgraph;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
+import java.io.FileWriter;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -51,8 +52,11 @@ public class FastGraph {
 
     /**
      * Initialize the graph with 2 files vertices and edges
-     * @param verticesFile A file containing comma-separated list of vertices ID and vertices name
-     * @param edgesFile A file containing comma-separated list of two vertices ID. For example, one row could be 25432, 1276287
+     *
+     * @param verticesFile A file containing comma-separated list of vertices ID
+     * and vertices name
+     * @param edgesFile A file containing comma-separated list of two vertices
+     * ID. For example, one row could be 25432, 1276287
      */
     public FastGraph(File verticesFile, File edgesFile) {
 
@@ -173,9 +177,127 @@ public class FastGraph {
     }
 
     /**
+     * A static utility function to convert any text file to FastGraph files
+     *
+     * @param inputTextFile File containing the lines of text to tokenize
+     * @param outputVerticesFile A file containing comma-separated list of
+     * vertices ID and vertices name. This will be generated.
+     * @param outputEdgesFile A file containing comma-separated list of two
+     * vertices ID. For example, one row could be 25432, 1276287. This will be
+     * generated.
+     */
+    public static void createFastGraphFiles(File inputTextFile, File outputVerticesFile, File outputEdgesFile) {
+
+        LinkedHashMap<String, Integer> verticesMap = new LinkedHashMap();
+        LinkedHashMap<Integer, String> reverse_verticesMap = new LinkedHashMap();
+        LinkedHashMap<Integer, ArrayList> edgesMap = new LinkedHashMap();
+
+        try {
+
+            //First pass
+            FileInputStream fis = new FileInputStream(inputTextFile);
+            Scanner scanner = new Scanner(fis);
+            int VID = 1;
+
+            while (scanner.hasNextLine()) {
+                String line = scanner.nextLine();
+                //System.out.println(line);
+                StringTokenizer stok = new StringTokenizer(line, " ");
+                while (stok.hasMoreTokens()) {
+                    String token = stok.nextToken().trim();
+                    if (!verticesMap.containsKey(token)) {
+                        if (!reverse_verticesMap.containsKey(VID)) {
+                            verticesMap.put(token, VID);
+                            reverse_verticesMap.put(VID, token);
+                            VID++;
+                        }
+
+                    }
+                }
+            }
+
+            fis.close();
+
+            System.out.println("Populated vertices: " + verticesMap.size());
+
+            //Second pass
+            fis = new FileInputStream(inputTextFile);
+            scanner = new Scanner(fis);
+
+            int EID = 1;
+
+            while (scanner.hasNextLine()) {
+                String line = scanner.nextLine();
+                StringTokenizer stok = new StringTokenizer(line, " ");
+                String prevToken = "";
+                int tokenCount = 0;
+                while (stok.hasMoreTokens()) {
+                    String token = stok.nextToken().trim();
+                    if (tokenCount == 0) {
+                        //Root
+                        prevToken = token;
+                        tokenCount++;
+                        continue;
+                    }
+
+                    int VID1 = verticesMap.get(prevToken);
+                    int VID2 = verticesMap.get(token);
+
+                    ArrayList connectionsList = new ArrayList();
+                    connectionsList.add(VID1);
+                    connectionsList.add(VID2);
+
+                    edgesMap.put(EID, connectionsList);
+                    EID++;
+                    tokenCount++;
+                }
+
+            }
+            fis.close();
+            System.out.println("Populated edges: " + edgesMap.size());
+
+            System.out.println("Write FastGraph files...");
+            FileWriter verticesWriter = new FileWriter(outputVerticesFile);
+
+            verticesMap.keySet().forEach((vertexName) -> {
+                try {
+                    int vertexID = verticesMap.get(vertexName);
+                    verticesWriter.write(vertexID + ", " + vertexName + "\r\n");
+                } catch (IOException ex) {
+                    Logger.getLogger(FastGraph.class.getName()).log(Level.SEVERE, null, ex);
+                }
+            });
+
+            verticesWriter.close();
+
+            FileWriter edgesWriter = new FileWriter(outputEdgesFile);
+
+            edgesMap.keySet().forEach((edgeID) -> {
+                try {
+                    ArrayList connectionsList = edgesMap.get(edgeID);
+                    //Size is always 2
+                    edgesWriter.write(connectionsList.get(0) + ", " + connectionsList.get(1) + "\r\n");
+                } catch (IOException ex) {
+                    Logger.getLogger(FastGraph.class.getName()).log(Level.SEVERE, null, ex);
+                }
+            });
+
+            edgesWriter.close();
+
+        } catch (FileNotFoundException ex) {
+            Logger.getLogger(FastGraph.class.getName()).log(Level.SEVERE, null, ex);
+        } catch (IOException ex) {
+            Logger.getLogger(FastGraph.class.getName()).log(Level.SEVERE, null, ex);
+        }
+
+    }
+
+    /**
      * Get the ID of the vertex by its name
+     *
      * @param line The name of the vertex
-     * @param patternMatch Should vertex name be pattern-matched if the exact vertex name is not available?
+     * @param patternMatch Should vertex name be pattern-matched if the exact
+     * vertex name is not available?
      * @return Returns vertex ID
      */
     public Integer getVertexByName(String line, boolean patternMatch) {
@@ -200,6 +322,7 @@ public class FastGraph {
 
     /**
      * Get the vertex name from its ID
+     *
      * @param VID The vertex ID
      * @return The vertex name
      */
@@ -213,24 +336,28 @@ public class FastGraph {
 
     /**
      * Get all the connections for the edge denoted by this edge ID
+     *
      * @param EID The Edge ID
-     * @return A LinkedHashMap containing the Source VID, Destination VID and the connection weight
+     * @return A LinkedHashMap containing the Source VID, Destination VID and
+     * the connection weight
      */
     public LinkedHashMap getVerticesForEdge(int EID) {
         return edges.get(EID);
     }
-    
-     /**
+
+    /**
      * Get all the edges for the vertex denoted by this vertex ID
+     *
      * @param VID The Vertex ID
      * @return An ArrayList containing the list of all Edge IDs
      */
-    public ArrayList getAllEdgesForVertex(int VID){
+    public ArrayList getAllEdgesForVertex(int VID) {
         return edgesHelper.get(VID);
     }
 
     /**
      * Get the vertices count for the graph
+     *
      * @return The vertices count
      */
     public int getVerticesSize() {
@@ -239,6 +366,7 @@ public class FastGraph {
 
     /**
      * Get the edges size for the graph
+     *
      * @return The edges size
      */
     public int getEdgesSize() {
@@ -247,6 +375,7 @@ public class FastGraph {
 
     /**
      * Find the number of triangles for this vertex
+     *
      * @param VID1 The vertex ID
      * @return The number of triangles connecting to this vertex
      */
@@ -256,8 +385,11 @@ public class FastGraph {
 
     /**
      * Find all the triangles for this vertex
+     *
      * @param VID1 The vertex ID
-     * @return An ArrayList of ArrayLIst containing all the cyclic paths. The paths are denoted by vertex IDs. Use getVertexByID method to get the vertex name.
+     * @return An ArrayList of ArrayLIst containing all the cyclic paths. The
+     * paths are denoted by vertex IDs. Use getVertexByID method to get the
+     * vertex name.
      */
     public ArrayList getTrianglesForVertex(int VID1) {
         //Get all cyclic paths, if any
@@ -336,6 +468,7 @@ public class FastGraph {
 
     /**
      * Count the number of triangles for this graph
+     *
      * @return The number of triangles present in this graph
      */
     public int countTriangles() {
@@ -344,7 +477,10 @@ public class FastGraph {
 
     /**
      * Get all the triangles present in this graph
-     * @return An ArrayList of ArrayList containing all the triangles in this graph. The paths are denoted by vertex IDs. Use getVertexByID method to get the vertex name.
+     *
+     * @return An ArrayList of ArrayList containing all the triangles in this
+     * graph. The paths are denoted by vertex IDs. Use getVertexByID method to
+     * get the vertex name.
      */
     public ArrayList getAllTriangles() {
         //Get all cyclic paths, if any
@@ -428,6 +564,7 @@ public class FastGraph {
 
     /**
      * Get the weigh of the edge between 2 vertices
+     *
      * @param VID1 Vertex 1
      * @param VID2 Vertex 2
      * @return The weight or the connection strength between these 2 vertices
@@ -461,6 +598,7 @@ public class FastGraph {
 
     /**
      * Get the count of edges for the vertex denoted by its ID
+     *
      * @param VID The vertex ID
      * @return The total number of edges for this vertex ID
      */
@@ -470,6 +608,7 @@ public class FastGraph {
 
     /**
      * Get the count of edges for the vertex denoted by its ID
+     *
      * @param VID The vertex ID
      * @return The total number of edges for this vertex ID
      */
@@ -479,6 +618,7 @@ public class FastGraph {
 
     /**
      * Get the total number of neighbors for a vertex
+     *
      * @param VID The vertex ID
      * @return The count of neighbors (vertices) for this vertex
      */
@@ -494,9 +634,13 @@ public class FastGraph {
     }
 
     /**
-     * Ranking algorithm. Get the best ranked vertices in this graph based on the triangles count
-     * @param maxVertices The maximum number of vertices to be returned. For example, 20, indicates, top 20 ranked vertices.
-     * @return A sorted map containing (Vertex ID, Rank) containing the top-ranked vertices and their ranks.
+     * Ranking algorithm. Get the best ranked vertices in this graph based on
+     * the triangles count
+     *
+     * @param maxVertices The maximum number of vertices to be returned. For
+     * example, 20, indicates, top 20 ranked vertices.
+     * @return A sorted map containing (Vertex ID, Rank) containing the
+     * top-ranked vertices and their ranks.
      */
     public Map getRankByTrianglesCount(int maxVertices) {
         LinkedHashMap rankedMap = new LinkedHashMap();
@@ -527,9 +671,13 @@ public class FastGraph {
     }
 
     /**
-     * Ranking algorithm. Get the best ranked vertices in this graph based on edges count.
-     * @param maxVertices The maximum number of vertices to be returned. For example, 20, indicates, top 20 ranked vertices.
-     * @return A sorted map containing (Vertex ID, Rank) containing the top-ranked vertices and their ranks.
+     * Ranking algorithm. Get the best ranked vertices in this graph based on
+     * edges count.
+     *
+     * @param maxVertices The maximum number of vertices to be returned. For
+     * example, 20, indicates, top 20 ranked vertices.
+     * @return A sorted map containing (Vertex ID, Rank) containing the
+     * top-ranked vertices and their ranks.
      */
     public Map getRankByEdgesCount(int maxVertices) {
         LinkedHashMap rankedMap = new LinkedHashMap();
@@ -570,6 +718,7 @@ public class FastGraph {
 
     /**
      * Get the best trail (path) length for this vertex
+     *
      * @param VID The vertex ID
      * @param depth The maximum depth (hops) of search
      * @return The count of hops after which teh path ends
@@ -580,8 +729,10 @@ public class FastGraph {
 
     /**
      * Get the best trail (path) in the graph
+     *
      * @param depth The maximum depth (hops) of search
-     * @return A LinkedHashMap (VID, ArrayList of paths) representing the best trail in the graph.
+     * @return A LinkedHashMap (VID, ArrayList of paths) representing the best
+     * trail in the graph.
      */
     public LinkedHashMap getBestTrailInGraph(int depth) {
 
@@ -605,6 +756,7 @@ public class FastGraph {
 
     /**
      * Get the best trail (path) for this vertex
+     *
      * @param VID The Vertex ID
      * @param depth The maximum depth (hops) of search
      * @param sortByWeights Should the connections be sorted by its weight?
@@ -645,12 +797,15 @@ public class FastGraph {
     }
 
     /**
-     * Find the best path between 2 vertices. A long-running operation for massive graphs. Only 20 hops are made.
+     * Find the best path between 2 vertices. A long-running operation for
+     * massive graphs. Only 20 hops are made.
+     *
      * @param VID1 Vertex I
      * @param VID2 Vertex 2
      * @param depth The maximum depth (hops) of search
      * @param sortByWeights Should the connections be sorted by its weight?
-     * @return An ArrayList of vertex IDs denoting the path between the 2 given vertices
+     * @return An ArrayList of vertex IDs denoting the path between the 2 given
+     * vertices
      */
     public ArrayList findPathBetweenVertices(int VID1, int VID2, int depth, boolean sortByWeights) {
         ArrayList paths = new ArrayList();
@@ -1230,10 +1385,12 @@ public class FastGraph {
 
     /**
      * Find all neighbors (immediate inbound and outbound vertices) for a Vertex
+     *
      * @param VID The Vertex ID
      * @param depth Maximum hops
      * @param sortByWeights Should the path be taken based on edge weights
-     * @return A map (Vertex ID, Weight of edges) containing the neighbors and their connection strengths
+     * @return A map (Vertex ID, Weight of edges) containing the neighbors and
+     * their connection strengths
      */
     public Map findNeighbors(int VID, int depth, boolean sortByWeights) {
         //System.out.println("Looking for neighbors for "+VID+" at depth "+depth);
