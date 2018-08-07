@@ -42,7 +42,7 @@ import java.util.stream.Collectors;
  *
  * @author Frank Jennings
  */
-public final class FastGraph {
+public class FastGraph {
 
     private LinkedHashMap<Integer, String> vertices = new LinkedHashMap();
     private LinkedHashMap<String, Integer> reverse_vertices = new LinkedHashMap();
@@ -159,7 +159,7 @@ public final class FastGraph {
                 //Add in edgesHelper
                 if (edgesHelper.containsKey(VID1)) {
                     //Vertex already there
-                    ArrayList edgesList = (ArrayList) edgesHelper.get(VID1);
+                    ArrayList edgesList = edgesHelper.get(VID1);
                     edgesList.add(TEID);
                     edgesHelper.remove(VID1);
                     edgesHelper.put(VID1, edgesList);
@@ -170,7 +170,7 @@ public final class FastGraph {
                 }
                 if (edgesHelper.containsKey(VID2)) {
                     //Vertex already there
-                    ArrayList edgesList = (ArrayList) edgesHelper.get(VID2);
+                    ArrayList edgesList = edgesHelper.get(VID2);
                     if (!edgesList.contains(TEID)) {
                         edgesList.add(TEID);
                     }
@@ -319,6 +319,11 @@ public final class FastGraph {
 
     }
 
+    /**
+     * Get all dangling vertices without any edges.
+     * These vertices are not connect with any other vertices
+     * @return a Set containing the vertices IDs
+     */
     public Set getAllVerticesWithNoEdges() {
         //Compare vertices with edges to all the vertices
         Set<Integer> allVertices = new HashSet<>(vertices.keySet());
@@ -435,12 +440,12 @@ public final class FastGraph {
         if (VID1 == -1) {
             return cyclicPaths;
         }
-        ArrayList edgesList = (ArrayList) edgesHelper.get(VID1);
+        ArrayList edgesList = edgesHelper.get(VID1);
 
         for (int i = 0; i < edgesList.size(); i++) {
             int EID = (int) edgesList.get(i);
             //Get vertices for this edge
-            LinkedHashMap edgesMap = (LinkedHashMap) edges.get(EID);
+            LinkedHashMap edgesMap = edges.get(EID);
             int sourceID = (int) edgesMap.get("S");
             int destID = (int) edgesMap.get("D");
 
@@ -456,12 +461,12 @@ public final class FastGraph {
                 continue;
             }
             //Find connections for neighborID
-            ArrayList edgesList2 = (ArrayList) edgesHelper.get(neighborID);
+            ArrayList edgesList2 = edgesHelper.get(neighborID);
 
             for (int j = 0; j < edgesList2.size(); j++) {
                 int EID2 = (int) edgesList2.get(j);
                 //Get vertices for this edge
-                LinkedHashMap edgesMap2 = (LinkedHashMap) edges.get(EID2);
+                LinkedHashMap edgesMap2 = edges.get(EID2);
                 int sourceID2 = (int) edgesMap2.get("S");
                 int destID2 = (int) edgesMap2.get("D");
 
@@ -528,7 +533,7 @@ public final class FastGraph {
             if (VID1 == -1) {
                 return cyclicPaths;
             }
-            ArrayList edgesList = (ArrayList) edgesHelper.get(VID1);
+            ArrayList edgesList = edgesHelper.get(VID1);
             if (edgesList == null) {
                 continue;
             }
@@ -536,7 +541,7 @@ public final class FastGraph {
             for (int i = 0; i < edgesList.size(); i++) {
                 int EID = (int) edgesList.get(i);
                 //Get vertices for this edge
-                LinkedHashMap edgesMap = (LinkedHashMap) edges.get(EID);
+                LinkedHashMap edgesMap = edges.get(EID);
                 int sourceID = (int) edgesMap.get("S");
                 int destID = (int) edgesMap.get("D");
 
@@ -551,12 +556,12 @@ public final class FastGraph {
                     continue;
                 }
                 //Find connections for neighborID
-                ArrayList edgesList2 = (ArrayList) edgesHelper.get(neighborID);
+                ArrayList edgesList2 = edgesHelper.get(neighborID);
 
                 for (int j = 0; j < edgesList2.size(); j++) {
                     int EID2 = (int) edgesList2.get(j);
                     //Get vertices for this edge
-                    LinkedHashMap edgesMap2 = (LinkedHashMap) edges.get(EID2);
+                    LinkedHashMap edgesMap2 = edges.get(EID2);
                     int sourceID2 = (int) edgesMap2.get("S");
                     int destID2 = (int) edgesMap2.get("D");
 
@@ -616,7 +621,7 @@ public final class FastGraph {
 
         for (int i = 0; i < edgeCandidates.size(); i++) {
             int EID = edgeCandidates.get(i);
-            LinkedHashMap edgesMap = (LinkedHashMap) edges.get(EID);
+            LinkedHashMap edgesMap = edges.get(EID);
             int sourceID = (int) edgesMap.get("S");
             int destID = (int) edgesMap.get("D");
 
@@ -663,7 +668,7 @@ public final class FastGraph {
         if (VID == -1) {
             return VID;
         } else {
-            return ((ArrayList) edgesHelper.get(VID)).size();
+            return edgesHelper.get(VID).size();
         }
         //Another way
         //return (getNeighbors(VID, 1, false)).size();
@@ -693,7 +698,7 @@ public final class FastGraph {
                     break;
                 }
                 int VID = (int) iter.next();
-                int size = (int) hotSpots.get(VID);
+                int size = hotSpots.get(VID);
                 resultsMap.put(VID, size);
                 count++;
             }
@@ -722,7 +727,7 @@ public final class FastGraph {
                 break;
             }
             int VID = (int) iter.next();
-            int size = (int) sortedNeighborsMap.get(VID);
+            int size = sortedNeighborsMap.get(VID);
             resultsMap.put(VID, size);
             count++;
         }
@@ -743,7 +748,7 @@ public final class FastGraph {
         LinkedHashMap rankedMap = new LinkedHashMap();
         //Faster way
         edgesHelper.keySet().forEach((VID) -> {
-            ArrayList edgesList = (ArrayList) edgesHelper.get(VID);
+            ArrayList edgesList = edgesHelper.get(VID);
             //System.out.println(VID + " - " + edgesList.size());
             rankedMap.put(VID, edgesList.size());
         });
@@ -768,7 +773,7 @@ public final class FastGraph {
                 break;
             }
             int VID = (int) iter.next();
-            int size = (int) sortedNeighborsMap.get(VID);
+            int size = sortedNeighborsMap.get(VID);
             resultsMap.put(VID, size);
             count++;
         }
@@ -1456,7 +1461,7 @@ public final class FastGraph {
     private boolean canSkipEdgeForVertex(int VID, int EID) {
 
         if (edgesHelper.containsKey(VID)) {
-            ArrayList edgesList = (ArrayList) edgesHelper.get(VID);
+            ArrayList edgesList = edgesHelper.get(VID);
             return !edgesList.contains(EID); //Known connection
             //Can skip
         } else {
@@ -1522,7 +1527,7 @@ public final class FastGraph {
                 LinkedHashMap<Integer, Integer> rankedNeighborsList = new LinkedHashMap();
 
                 neighbors.keySet().forEach((vertexID) -> {
-                    int triangles = (int) hotSpots.get(vertexID);
+                    int triangles = hotSpots.get(vertexID);
                     rankedNeighborsList.put(vertexID, triangles);
                 });
 
