@@ -829,19 +829,19 @@ public final class FastGraph {
             return strongPathList;
         }
         ArrayList<Integer> visitedList = new ArrayList();
-        
+
         ArrayList<Integer> hotSpotsList = new ArrayList();
-        
+
         Iterator hotSpotIter = hotSpots.keySet().iterator();
-        
+
         int count = 0;
-        int maxCount = edgesHelper.size()/10;
-        while(hotSpotIter.hasNext()){
+        int maxCount = edgesHelper.size() / 10;
+        while (hotSpotIter.hasNext()) {
             //Prefer one tenth of the top vertices only
-            if(count == maxCount){
+            if (count == maxCount) {
                 break;
             }
-            int vertexID = (int)hotSpotIter.next();
+            int vertexID = (int) hotSpotIter.next();
             hotSpotsList.add(vertexID);
             count++;
         }
@@ -1516,7 +1516,23 @@ public final class FastGraph {
             Map<Integer, Integer> sortedNeighborsMap = sortByComparator(neighbors, false);
             return sortedNeighborsMap;
         } else {
-            return neighbors;
+            //Try to sort by rank
+            if (hotSpots.size() == edgesHelper.size()) {
+                //Hot spot available. Sort by rank
+                LinkedHashMap<Integer, Integer> rankedNeighborsList = new LinkedHashMap();
+
+                neighbors.keySet().forEach((vertexID) -> {
+                    int triangles = (int) hotSpots.get(vertexID);
+                    rankedNeighborsList.put(vertexID, triangles);
+                });
+
+                //Sort by triangle ownerships
+                Map<Integer, Integer> sortedNeighborsMap = sortByComparator(rankedNeighborsList, false);
+
+                return sortedNeighborsMap;
+            } else {
+                return neighbors;
+            }
         }
     }
 
