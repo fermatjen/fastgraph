@@ -881,6 +881,22 @@ public class FastGraph {
         return strongPathList;
 
     }
+    
+    /**
+     * Find if 2 vertices are directly connected
+     * @param VID1 Vertex 1
+     * @param VID2 Vertex 2
+     * @return True if the 2 vertices are directly connected
+     */
+    public boolean isDirectlyConnected(int VID1, int VID2){
+        
+        ArrayList edgeList1 = edgesHelper.get(VID1);
+        ArrayList edgeList2 = edgesHelper.get(VID2);
+        
+        edgeList1.retainAll(edgeList2);
+        
+        return !edgeList1.isEmpty(); //Not directly connected
+    }
 
     /**
      * Find the best path between 2 vertices. A long-running operation for
@@ -896,6 +912,14 @@ public class FastGraph {
     public ArrayList getPathBetweenVertices(int VID1, int VID2, int depth, boolean sortByWeights) {
         ArrayList paths = new ArrayList();
         if (VID1 == -1 || VID2 == -1) {
+            return paths;
+        }
+        
+        //Find if they are directly connected
+        if(isDirectlyConnected(VID1, VID2)){
+            paths.add(VID1);
+            paths.add(VID2);
+            
             return paths;
         }
         //We'll use nested loops instead of recursion to avoid heap issues
