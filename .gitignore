@@ -4,3 +4,4 @@ src/main/java/fj/fastgraph/TestFastGraph.java
 *.mf
 *.properties
 /build/
+/dist/

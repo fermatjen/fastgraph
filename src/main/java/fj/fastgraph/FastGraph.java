@@ -25,6 +25,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.LinkedList;
@@ -41,7 +42,7 @@ import java.util.stream.Collectors;
  *
  * @author Frank Jennings
  */
-public class FastGraph {
+public final class FastGraph {
 
     private LinkedHashMap<Integer, String> vertices = new LinkedHashMap();
     private LinkedHashMap<String, Integer> reverse_vertices = new LinkedHashMap();
@@ -49,6 +50,7 @@ public class FastGraph {
     private LinkedHashMap<Integer, LinkedHashMap> edges = new LinkedHashMap();
     //For fast neighbor finding
     private LinkedHashMap<Integer, ArrayList> edgesHelper = new LinkedHashMap();
+    private Map<Integer, Integer> hotSpots = new LinkedHashMap<>();
 
     /**
      * Initialize the graph with 2 files vertices and edges
@@ -59,6 +61,22 @@ public class FastGraph {
      * ID. For example, one row could be 25432, 1276287
      */
     public FastGraph(File verticesFile, File edgesFile) {
+        this(verticesFile, edgesFile, false);
+    }
+
+    /**
+     * Initialize the graph with 2 files vertices and edges
+     *
+     * @param verticesFile A file containing comma-separated list of vertices ID
+     * and vertices name
+     * @param edgesFile A file containing comma-separated list of two vertices
+     * ID. For example, one row could be 25432, 1276287
+     * @param computeHotspots If True, when the FastGraph initializes, it
+     * creates a map of hot spot vertices that will be used as preferred
+     * traversal paths. The hot spots are calculated based on the triangles
+     * owned by the vertices.
+     */
+    public FastGraph(File verticesFile, File edgesFile, boolean computeHotspots) {
 
         FileInputStream fis;
         try {
@@ -168,7 +186,16 @@ public class FastGraph {
 
             fis.close();
 
-            //System.out.println("Graph populated with " + vertices.size() + " vertices and " + edges.size() + " edges! and edges strength of " + edgesHelper.size());
+            Logger.getLogger(FastGraph.class.getName()).log(Level.INFO, "FastGraph: Populated with {0} vertices and {1} edges", new Object[]{vertices.size(), edges.size()});
+
+            if (computeHotspots) {
+                Logger.getLogger(FastGraph.class.getName()).log(Level.INFO, "FastGraph: Computing hot spots...");
+
+                hotSpots = getRankByTrianglesCount(edgesHelper.size());
+
+                Logger.getLogger(FastGraph.class.getName()).log(Level.INFO, "FastGraph: Computing hot spots for {0} vertices...DONE", hotSpots.size());
+            }
+
         } catch (FileNotFoundException ex) {
             Logger.getLogger(FastGraph.class.getName()).log(Level.SEVERE, null, ex);
         } catch (IOException ex) {
@@ -292,6 +319,15 @@ public class FastGraph {
 
     }
 
+    public Set getAllVerticesWithNoEdges() {
+        //Compare vertices with edges to all the vertices
+        Set<Integer> allVertices = new HashSet<>(vertices.keySet());
+        Set<Integer> edgedVertices = new HashSet<>(edgesHelper.keySet());
+        allVertices.removeAll(edgedVertices);
+
+        return allVertices;
+    }
+
     /**
      * Get the ID of the vertex by its name
      *
@@ -379,7 +415,7 @@ public class FastGraph {
      * @param VID1 The vertex ID
      * @return The number of triangles connecting to this vertex
      */
-    public int countTrianglesForVertex(int VID1) {
+    public int getTrianglesCountForVertex(int VID1) {
         return getTrianglesForVertex(VID1).size();
     }
 
@@ -471,7 +507,7 @@ public class FastGraph {
      *
      * @return The number of triangles present in this graph
      */
-    public int countTriangles() {
+    public int getTrianglesCount() {
         return getAllTriangles().size();
     }
 
@@ -630,7 +666,7 @@ public class FastGraph {
             return ((ArrayList) edgesHelper.get(VID)).size();
         }
         //Another way
-        //return (findNeighbors(VID, 1, false)).size();
+        //return (getNeighbors(VID, 1, false)).size();
     }
 
     /**
@@ -643,12 +679,36 @@ public class FastGraph {
      * top-ranked vertices and their ranks.
      */
     public Map getRankByTrianglesCount(int maxVertices) {
+
+        //If hotspots are available and not corrupted, return the hotspots instead
+        //as they already contain the traingles count.
+        if (hotSpots.size() == edgesHelper.size()) {
+            LinkedHashMap<Integer, Integer> resultsMap = new LinkedHashMap();
+
+            Iterator iter = hotSpots.keySet().iterator();
+
+            int count = 0;
+            while (iter.hasNext()) {
+                if (count == maxVertices) {
+                    break;
+                }
+                int VID = (int) iter.next();
+                int size = (int) hotSpots.get(VID);
+                resultsMap.put(VID, size);
+                count++;
+            }
+            return resultsMap;
+        }
+
         LinkedHashMap rankedMap = new LinkedHashMap();
         //Faster way
         edgesHelper.keySet().forEach((VID) -> {
-            int trianglesCount = countTrianglesForVertex(VID);
+            int trianglesCount = getTrianglesCountForVertex(VID);
             rankedMap.put(VID, trianglesCount);
         });
+
+        //Update internal hotspots
+        hotSpots = rankedMap;
 
         Map<Integer, Integer> sortedNeighborsMap = sortByComparator(rankedMap, false);
 
@@ -769,25 +829,46 @@ public class FastGraph {
             return strongPathList;
         }
         ArrayList<Integer> visitedList = new ArrayList();
+        
+        ArrayList<Integer> hotSpotsList = new ArrayList();
+        
+        Iterator hotSpotIter = hotSpots.keySet().iterator();
+        
+        int count = 0;
+        int maxCount = edgesHelper.size()/10;
+        while(hotSpotIter.hasNext()){
+            //Prefer one tenth of the top vertices only
+            if(count == maxCount){
+                break;
+            }
+            int vertexID = (int)hotSpotIter.next();
+            hotSpotsList.add(vertexID);
+            count++;
+        }
 
         int SVID = VID;
         for (int i = 0; i < depth; i++) {
             //One hop only
             //System.out.println("HOP: "+i+" with "+SVID);
-            Map neighbors = findNeighbors(SVID, 1, sortByWeights);
+            Map neighbors = getNeighbors(SVID, 1, sortByWeights);
             //System.out.println(neighbors.toString());
 
             Iterator iter = neighbors.keySet().iterator();
             while (iter.hasNext()) {
                 SVID = (int) iter.next();
-                if (!visitedList.contains(SVID)) {
-                    visitedList.add(SVID);
-                    if (SVID != VID) {
-                        //System.out.println(SVID + ":" + VID + "  " + neighbor);
-                        strongPathList.add(SVID);
+                //Prefer hotspot
+                if (hotSpotsList.contains(SVID)) {
+                    if (!visitedList.contains(SVID)) {
+                        visitedList.add(SVID);
+                        if (SVID != VID) {
+                            //System.out.println(SVID + ":" + VID + "  " + neighbor);
+                            strongPathList.add(SVID);
+                        }
+
                     }
                     break;
                 }
+                //Else the last connection is used for traversal
             }
 
         }
@@ -807,7 +888,7 @@ public class FastGraph {
      * @return An ArrayList of vertex IDs denoting the path between the 2 given
      * vertices
      */
-    public ArrayList findPathBetweenVertices(int VID1, int VID2, int depth, boolean sortByWeights) {
+    public ArrayList getPathBetweenVertices(int VID1, int VID2, int depth, boolean sortByWeights) {
         ArrayList paths = new ArrayList();
         if (VID1 == -1 || VID2 == -1) {
             return paths;
@@ -816,7 +897,7 @@ public class FastGraph {
         //Also we search in fixed depth only
         ArrayList visitedParents = new ArrayList();
 
-        Map cneighbors = findNeighbors(VID1, depth, sortByWeights);
+        Map cneighbors = getNeighbors(VID1, depth, sortByWeights);
         //Root
         visitedParents.add(VID1);
         Iterator iter = cneighbors.keySet().iterator();
@@ -836,7 +917,7 @@ public class FastGraph {
             if (visitedParents.contains(neighborID)) {
                 continue;
             }
-            Map cneighbors2 = findNeighbors(neighborID, depth, sortByWeights);
+            Map cneighbors2 = getNeighbors(neighborID, depth, sortByWeights);
             visitedParents.add(neighborID);
             Iterator iter2 = cneighbors2.keySet().iterator();
             while (iter2.hasNext()) {
@@ -855,7 +936,7 @@ public class FastGraph {
                 if (visitedParents.contains(neighborID2)) {
                     continue;
                 }
-                Map cneighbors3 = findNeighbors(neighborID2, depth, sortByWeights);
+                Map cneighbors3 = getNeighbors(neighborID2, depth, sortByWeights);
                 visitedParents.add(neighborID2);
                 Iterator iter3 = cneighbors3.keySet().iterator();
                 while (iter3.hasNext()) {
@@ -875,7 +956,7 @@ public class FastGraph {
                     if (visitedParents.contains(neighborID3)) {
                         continue;
                     }
-                    Map cneighbors4 = findNeighbors(neighborID3, depth, sortByWeights);
+                    Map cneighbors4 = getNeighbors(neighborID3, depth, sortByWeights);
                     visitedParents.add(neighborID3);
                     Iterator iter4 = cneighbors4.keySet().iterator();
                     while (iter4.hasNext()) {
@@ -895,7 +976,7 @@ public class FastGraph {
                         if (visitedParents.contains(neighborID4)) {
                             continue;
                         }
-                        Map cneighbors5 = findNeighbors(neighborID4, depth, sortByWeights);
+                        Map cneighbors5 = getNeighbors(neighborID4, depth, sortByWeights);
                         visitedParents.add(neighborID4);
                         Iterator iter5 = cneighbors5.keySet().iterator();
                         while (iter5.hasNext()) {
@@ -916,7 +997,7 @@ public class FastGraph {
                             if (visitedParents.contains(neighborID5)) {
                                 continue;
                             }
-                            Map cneighbors6 = findNeighbors(neighborID5, depth, sortByWeights);
+                            Map cneighbors6 = getNeighbors(neighborID5, depth, sortByWeights);
                             visitedParents.add(neighborID5);
                             Iterator iter6 = cneighbors6.keySet().iterator();
                             while (iter6.hasNext()) {
@@ -938,7 +1019,7 @@ public class FastGraph {
                                 if (visitedParents.contains(neighborID6)) {
                                     continue;
                                 }
-                                Map cneighbors7 = findNeighbors(neighborID6, depth, sortByWeights);
+                                Map cneighbors7 = getNeighbors(neighborID6, depth, sortByWeights);
                                 visitedParents.add(neighborID6);
                                 Iterator iter7 = cneighbors7.keySet().iterator();
                                 while (iter7.hasNext()) {
@@ -961,7 +1042,7 @@ public class FastGraph {
                                     if (visitedParents.contains(neighborID7)) {
                                         continue;
                                     }
-                                    Map cneighbors8 = findNeighbors(neighborID7, depth, sortByWeights);
+                                    Map cneighbors8 = getNeighbors(neighborID7, depth, sortByWeights);
                                     visitedParents.add(neighborID7);
                                     Iterator iter8 = cneighbors8.keySet().iterator();
                                     while (iter8.hasNext()) {
@@ -985,7 +1066,7 @@ public class FastGraph {
                                         if (visitedParents.contains(neighborID8)) {
                                             continue;
                                         }
-                                        Map cneighbors9 = findNeighbors(neighborID8, depth, sortByWeights);
+                                        Map cneighbors9 = getNeighbors(neighborID8, depth, sortByWeights);
                                         visitedParents.add(neighborID8);
                                         Iterator iter9 = cneighbors9.keySet().iterator();
                                         while (iter9.hasNext()) {
@@ -1010,7 +1091,7 @@ public class FastGraph {
                                             if (visitedParents.contains(neighborID9)) {
                                                 continue;
                                             }
-                                            Map cneighbors10 = findNeighbors(neighborID9, depth, sortByWeights);
+                                            Map cneighbors10 = getNeighbors(neighborID9, depth, sortByWeights);
                                             visitedParents.add(neighborID9);
                                             Iterator iter10 = cneighbors10.keySet().iterator();
                                             while (iter10.hasNext()) {
@@ -1036,7 +1117,7 @@ public class FastGraph {
                                                 if (visitedParents.contains(neighborID10)) {
                                                     continue;
                                                 }
-                                                Map cneighbors11 = findNeighbors(neighborID10, depth, sortByWeights);
+                                                Map cneighbors11 = getNeighbors(neighborID10, depth, sortByWeights);
                                                 visitedParents.add(neighborID10);
                                                 Iterator iter11 = cneighbors11.keySet().iterator();
                                                 while (iter11.hasNext()) {
@@ -1063,7 +1144,7 @@ public class FastGraph {
                                                     if (visitedParents.contains(neighborID11)) {
                                                         continue;
                                                     }
-                                                    Map cneighbors12 = findNeighbors(neighborID11, depth, sortByWeights);
+                                                    Map cneighbors12 = getNeighbors(neighborID11, depth, sortByWeights);
                                                     visitedParents.add(neighborID11);
                                                     Iterator iter12 = cneighbors12.keySet().iterator();
                                                     while (iter12.hasNext()) {
@@ -1091,7 +1172,7 @@ public class FastGraph {
                                                         if (visitedParents.contains(neighborID12)) {
                                                             continue;
                                                         }
-                                                        Map cneighbors13 = findNeighbors(neighborID12, depth, sortByWeights);
+                                                        Map cneighbors13 = getNeighbors(neighborID12, depth, sortByWeights);
                                                         visitedParents.add(neighborID12);
                                                         Iterator iter13 = cneighbors13.keySet().iterator();
                                                         while (iter13.hasNext()) {
@@ -1120,7 +1201,7 @@ public class FastGraph {
                                                             if (visitedParents.contains(neighborID13)) {
                                                                 continue;
                                                             }
-                                                            Map cneighbors14 = findNeighbors(neighborID13, depth, sortByWeights);
+                                                            Map cneighbors14 = getNeighbors(neighborID13, depth, sortByWeights);
                                                             visitedParents.add(neighborID13);
                                                             Iterator iter14 = cneighbors14.keySet().iterator();
                                                             while (iter14.hasNext()) {
@@ -1150,7 +1231,7 @@ public class FastGraph {
                                                                 if (visitedParents.contains(neighborID14)) {
                                                                     continue;
                                                                 }
-                                                                Map cneighbors15 = findNeighbors(neighborID14, depth, sortByWeights);
+                                                                Map cneighbors15 = getNeighbors(neighborID14, depth, sortByWeights);
                                                                 visitedParents.add(neighborID14);
                                                                 Iterator iter15 = cneighbors15.keySet().iterator();
                                                                 while (iter15.hasNext()) {
@@ -1181,7 +1262,7 @@ public class FastGraph {
                                                                     if (visitedParents.contains(neighborID15)) {
                                                                         continue;
                                                                     }
-                                                                    Map cneighbors16 = findNeighbors(neighborID15, depth, sortByWeights);
+                                                                    Map cneighbors16 = getNeighbors(neighborID15, depth, sortByWeights);
                                                                     visitedParents.add(neighborID15);
                                                                     Iterator iter16 = cneighbors16.keySet().iterator();
                                                                     while (iter16.hasNext()) {
@@ -1213,7 +1294,7 @@ public class FastGraph {
                                                                         if (visitedParents.contains(neighborID16)) {
                                                                             continue;
                                                                         }
-                                                                        Map cneighbors17 = findNeighbors(neighborID16, depth, sortByWeights);
+                                                                        Map cneighbors17 = getNeighbors(neighborID16, depth, sortByWeights);
                                                                         visitedParents.add(neighborID16);
                                                                         Iterator iter17 = cneighbors17.keySet().iterator();
                                                                         while (iter17.hasNext()) {
@@ -1246,7 +1327,7 @@ public class FastGraph {
                                                                             if (visitedParents.contains(neighborID17)) {
                                                                                 continue;
                                                                             }
-                                                                            Map cneighbors18 = findNeighbors(neighborID17, depth, sortByWeights);
+                                                                            Map cneighbors18 = getNeighbors(neighborID17, depth, sortByWeights);
                                                                             visitedParents.add(neighborID17);
                                                                             Iterator iter18 = cneighbors18.keySet().iterator();
                                                                             while (iter18.hasNext()) {
@@ -1280,7 +1361,7 @@ public class FastGraph {
                                                                                 if (visitedParents.contains(neighborID18)) {
                                                                                     continue;
                                                                                 }
-                                                                                Map cneighbors19 = findNeighbors(neighborID18, depth, sortByWeights);
+                                                                                Map cneighbors19 = getNeighbors(neighborID18, depth, sortByWeights);
                                                                                 visitedParents.add(neighborID18);
                                                                                 Iterator iter19 = cneighbors19.keySet().iterator();
                                                                                 while (iter19.hasNext()) {
@@ -1315,7 +1396,7 @@ public class FastGraph {
                                                                                     if (visitedParents.contains(neighborID19)) {
                                                                                         continue;
                                                                                     }
-                                                                                    Map cneighbors20 = findNeighbors(neighborID19, depth, sortByWeights);
+                                                                                    Map cneighbors20 = getNeighbors(neighborID19, depth, sortByWeights);
                                                                                     visitedParents.add(neighborID19);
                                                                                     Iterator iter20 = cneighbors20.keySet().iterator();
                                                                                     while (iter20.hasNext()) {
@@ -1392,7 +1473,7 @@ public class FastGraph {
      * @return A map (Vertex ID, Weight of edges) containing the neighbors and
      * their connection strengths
      */
-    public Map findNeighbors(int VID, int depth, boolean sortByWeights) {
+    public Map getNeighbors(int VID, int depth, boolean sortByWeights) {
         //System.out.println("Looking for neighbors for "+VID+" at depth "+depth);
         HashMap<Integer, Integer> neighbors = new HashMap();
 
@@ -1417,14 +1498,14 @@ public class FastGraph {
                     //Hit
                     //neighbors.put(getVertexByID(sourceID), weight);
                     neighbors.put(destID, weight);
-                    Map distantNeighbors = findNeighbors(destID, depth - 1, sortByWeights);
+                    Map distantNeighbors = getNeighbors(destID, depth - 1, sortByWeights);
                     neighbors.putAll(distantNeighbors);
                 }
                 if (destID == VID) {
                     //Hit
                     neighbors.put(sourceID, weight);
                     //neighbors.put(getVertexByID(destID), weight);
-                    Map distantNeighbors = findNeighbors(sourceID, depth - 1, sortByWeights);
+                    Map distantNeighbors = getNeighbors(sourceID, depth - 1, sortByWeights);
                     neighbors.putAll(distantNeighbors);
                 }
             }
