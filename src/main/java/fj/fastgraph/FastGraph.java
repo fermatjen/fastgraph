@@ -245,7 +245,7 @@ public class FastGraph {
 
             fis.close();
 
-            System.out.println("Populated vertices: " + verticesMap.size());
+            //System.out.println("Populated vertices: " + verticesMap.size());
 
             //Second pass
             fis = new FileInputStream(inputTextFile);
@@ -281,9 +281,9 @@ public class FastGraph {
 
             }
             fis.close();
-            System.out.println("Populated edges: " + edgesMap.size());
+            //System.out.println("Populated edges: " + edgesMap.size());
 
-            System.out.println("Write FastGraph files...");
+            //System.out.println("Write FastGraph files...");
             FileWriter verticesWriter = new FileWriter(outputVerticesFile);
 
             verticesMap.keySet().forEach((vertexName) -> {
@@ -320,8 +320,9 @@ public class FastGraph {
     }
 
     /**
-     * Get all dangling vertices without any edges.
-     * These vertices are not connect with any other vertices
+     * Get all dangling vertices without any edges. These vertices are not
+     * connect with any other vertices
+     *
      * @return a Set containing the vertices IDs
      */
     public Set getAllVerticesWithNoEdges() {
@@ -881,21 +882,28 @@ public class FastGraph {
         return strongPathList;
 
     }
-    
+
     /**
      * Find if 2 vertices are directly connected
+     *
      * @param VID1 Vertex 1
      * @param VID2 Vertex 2
      * @return True if the 2 vertices are directly connected
      */
-    public boolean isDirectlyConnected(int VID1, int VID2){
-        
+    public boolean isDirectlyConnected(int VID1, int VID2) {
         ArrayList edgeList1 = edgesHelper.get(VID1);
+        //Create a scratch list because retainAll removes from
+        //the original list
+        ArrayList dup_edgeList1 = new ArrayList();
+        dup_edgeList1.addAll(edgeList1);
+        
         ArrayList edgeList2 = edgesHelper.get(VID2);
+        ArrayList dup_edgeList2 = new ArrayList();
+        dup_edgeList2.addAll(edgeList2);
         
-        edgeList1.retainAll(edgeList2);
-        
-        return !edgeList1.isEmpty(); //Not directly connected
+        dup_edgeList1.retainAll(dup_edgeList2);
+
+        return !dup_edgeList1.isEmpty(); //Not directly connected
     }
 
     /**
@@ -914,12 +922,12 @@ public class FastGraph {
         if (VID1 == -1 || VID2 == -1) {
             return paths;
         }
-        
+
         //Find if they are directly connected
-        if(isDirectlyConnected(VID1, VID2)){
+        if (isDirectlyConnected(VID1, VID2)) {
             paths.add(VID1);
             paths.add(VID2);
-            
+
             return paths;
         }
         //We'll use nested loops instead of recursion to avoid heap issues
@@ -1482,15 +1490,28 @@ public class FastGraph {
 
     }
 
-    private boolean canSkipEdgeForVertex(int VID, int EID) {
+    /**
+     * Find out if a certain path is a valid in the graph
+     *
+     * @param paths An ArrayList containing the list of all Vertex IDs
+     * @return True if the path is available in the graph
+     */
+    public boolean isAValidPath(ArrayList paths) {
+        //It is enough to proove if 2 paths are not directly connected
 
-        if (edgesHelper.containsKey(VID)) {
-            ArrayList edgesList = edgesHelper.get(VID);
-            return !edgesList.contains(EID); //Known connection
-            //Can skip
-        } else {
-            return true;
+        int prevVID = -1;
+
+        for (Object path : paths) {
+            int VID = (int) path;
+            if (prevVID != -1) {
+                if (!isDirectlyConnected(VID, prevVID)) {
+                    return false;
+                }
+            }
+            prevVID = VID;
         }
+
+        return true;
     }
 
     /**
@@ -1517,27 +1538,26 @@ public class FastGraph {
         edges.keySet().forEach((EID) -> {
             //System.out.println("Skipping "+EID+" for "+VID);
             //Check if this edge can be skipped
-            if (!(canSkipEdgeForVertex(VID, EID))) {
-                LinkedHashMap connections = edges.get(EID);
-                int sourceID = (int) connections.get("S");
-                int destID = (int) connections.get("D");
-                int weight = (int) connections.get("W");
-                //System.out.println(VID+" -> "+sourceID+":"+destID);
-                if (sourceID == VID) {
-                    //Hit
-                    //neighbors.put(getVertexByID(sourceID), weight);
-                    neighbors.put(destID, weight);
-                    Map distantNeighbors = getNeighbors(destID, depth - 1, sortByWeights);
-                    neighbors.putAll(distantNeighbors);
-                }
-                if (destID == VID) {
-                    //Hit
-                    neighbors.put(sourceID, weight);
-                    //neighbors.put(getVertexByID(destID), weight);
-                    Map distantNeighbors = getNeighbors(sourceID, depth - 1, sortByWeights);
-                    neighbors.putAll(distantNeighbors);
-                }
+            LinkedHashMap connections = edges.get(EID);
+            int sourceID = (int) connections.get("S");
+            int destID = (int) connections.get("D");
+            int weight = (int) connections.get("W");
+            //System.out.println(VID+" -> "+sourceID+":"+destID);
+            if (sourceID == VID) {
+                //Hit
+                //neighbors.put(getVertexByID(sourceID), weight);
+                neighbors.put(destID, weight);
+                Map distantNeighbors = getNeighbors(destID, depth - 1, sortByWeights);
+                neighbors.putAll(distantNeighbors);
             }
+            if (destID == VID) {
+                //Hit
+                neighbors.put(sourceID, weight);
+                //neighbors.put(getVertexByID(destID), weight);
+                Map distantNeighbors = getNeighbors(sourceID, depth - 1, sortByWeights);
+                neighbors.putAll(distantNeighbors);
+            }
+
         });
 
         //Sort by value and return
