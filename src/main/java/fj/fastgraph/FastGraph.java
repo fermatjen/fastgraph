@@ -212,8 +212,9 @@ public class FastGraph {
     }
 
     /**
-     * Get the JSON representation of the current graph
-     *
+     * Get the JSON representation of one vertex and all its neighbors
+     * @param vertexID The Vertex ID of the graph and all its children will be
+     * exported.
      * @param processOnly Maximum number of vertices to convert to JSON. If -1,
      * the whole graph is converted into a JSON.
      * @param maxXY The exported JSON will contain values for X and Y
@@ -223,10 +224,77 @@ public class FastGraph {
      * @return a JSON string that can be used to visualize the graph using
      * SigmaJS library.
      */
-    public String getJSON(int processOnly, int maxXY, int indent) {
+    public String getJSONForVertex(int vertexID, int processOnly, int maxXY, int indent) {
+        return getJSON(processOnly, maxXY, indent, false, -1, true, vertexID);
+    }
+
+    /**
+     * Get the JSON representation of the current graph
+     * @param processOnly Maximum number of vertices to convert to JSON. If -1,
+     * the whole graph is converted into a JSON.
+     * @param maxXY The exported JSON will contain values for X and Y
+     * coordinates. These values are required for SigmaJS to render the
+     * vertices. maxXY is the maximum value X or Y can have.
+     * @param indent The indent for JSON string
+     * @param forRankedVerticesOnly A subgraph containing best vertices will
+     * only be exported to JSON.
+     * @param topRanksOnly If forRankedVerticesOnly is True, you can specify the
+     * number of vertices to include as the root nodes.
+     * @return a JSON string that can be used to visualize the graph using
+     * SigmaJS library.
+     */
+    public String getJSONForGraph(int processOnly, int maxXY, int indent, boolean forRankedVerticesOnly, int topRanksOnly) {
+        return getJSON(processOnly, maxXY, indent, forRankedVerticesOnly, topRanksOnly, false, -1);
+    }
+
+    /**
+     * Get the JSON representation of the current graph
+     *
+     * @param processOnly Maximum number of vertices to convert to JSON. If -1,
+     * the whole graph is converted into a JSON.
+     * @param maxXY The exported JSON will contain values for X and Y
+     * coordinates. These values are required for SigmaJS to render the
+     * vertices. maxXY is the maximum value X or Y can have.
+     * @param indent The indent for JSON string
+     * @param forRankedVerticesOnly A subgraph containing best vertices will
+     * only be exported to JSON.
+     * @param topRanksOnly If forRankedVerticesOnly is True, you can specify the
+     * number of vertices to include as the root nodes.
+     * @param processOneVertexOnly A JSON of the graph can be exported for only
+     * one vertex only
+     * @param vertexID The Vertex ID of the graph and all its children will be
+     * exported.
+     * @return a JSON string that can be used to visualize the graph using
+     * SigmaJS library.
+     */
+    private String getJSON(int processOnly, int maxXY, int indent, boolean forRankedVerticesOnly, int topRanksOnly, boolean processOneVertexOnly, int vertexID) {
 
         if (processOnly == -1) {
             processOnly = vertices.size();
+        }
+        Map rankedVertices = null;
+        Map<Integer, Integer> rankedNeighborVertices = new LinkedHashMap();
+
+        if (forRankedVerticesOnly || processOneVertexOnly) {
+            if (processOneVertexOnly) {
+                rankedVertices = new LinkedHashMap();
+                //Spoof a rank
+                System.out.println("Processing only for " + vertexID);
+                rankedVertices.put(vertexID, 100);
+            } else {
+                rankedVertices = getRankByTrianglesCount(topRanksOnly);
+            }
+
+            Iterator iter = rankedVertices.keySet().iterator();
+
+            while (iter.hasNext()) {
+                int VID = (int) iter.next();
+                int value = (int) rankedVertices.get(VID);
+                //Get children
+                Map children = getNeighbors(VID, 1, true);
+                rankedNeighborVertices.putAll(children);
+                rankedNeighborVertices.put(VID, value);
+            }
         }
 
         //Populate
@@ -235,24 +303,47 @@ public class FastGraph {
         LinkedHashMap<Integer, String> verticesSubMap = new LinkedHashMap();
         ArrayList<Integer> processedVertices = new ArrayList();
 
-        Iterator iter = vertices.keySet().iterator();
+        if (forRankedVerticesOnly) {
+            //Space is precious...consider only top vertices and their children
+            int count = 0;
+            Iterator iter = vertices.keySet().iterator();
+            while (iter.hasNext()) {
+                if (count == processOnly) {
+                    break;
+                }
+                int key = (int) iter.next();
 
-        int count = 0;
-        while (iter.hasNext()) {
-            if (count == processOnly) {
-                break;
+                if (forRankedVerticesOnly) {
+                    if (!rankedNeighborVertices.containsKey(key)) {
+                        continue;
+                    }
+                }
+
+                String value = vertices.get(key);
+                verticesSubMap.put(key, value);
+                processedVertices.add(key);
+                count++;
             }
 
-            int key = (int) iter.next();
-            String value = vertices.get(key);
-            verticesSubMap.put(key, value);
-            processedVertices.add(key);
-            count++;
+        } else {
+            int count = 0;
+            Iterator iter = vertices.keySet().iterator();
+            while (iter.hasNext()) {
+                if (count == processOnly) {
+                    break;
+                }
+
+                int key = (int) iter.next();
+                String value = vertices.get(key);
+                verticesSubMap.put(key, value);
+                processedVertices.add(key);
+                count++;
+            }
         }
 
         JSONArray nodesArray = new JSONArray();
 
-        count = 0;
+        int count = 0;
 
         for (int VID : verticesSubMap.keySet()) {
             //Check bounding limt
@@ -278,7 +369,7 @@ public class FastGraph {
             nodeObject.put("label", vertexName);
             nodeObject.put("x", getRandomInt(boundingMinX, boundingMaxX));
             nodeObject.put("y", getRandomInt(boundingMinY, boundingMaxY));
-            nodeObject.put("size", 2);
+            nodeObject.put("size", 1);
             nodesArray.put(nodeObject);
 
             count++;
