@@ -31,12 +31,16 @@ import java.util.LinkedHashMap;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
+import java.util.Random;
 import java.util.Scanner;
 import java.util.Set;
 import java.util.StringTokenizer;
+import java.util.function.Consumer;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
+import org.json.JSONArray;
+import org.json.JSONObject;
 
 /**
  *
@@ -203,6 +207,106 @@ public class FastGraph {
         }
     }
 
+    private int getRandomInt(int minInt, int maxInt) {
+        return new Random().nextInt(maxInt - minInt) + minInt;
+    }
+
+    /**
+     * Get the JSON representation of the current graph
+     *
+     * @param processOnly Maximum number of vertices to convert to JSON. If -1,
+     * the whole graph is converted into a JSON.
+     * @param maxXY The exported JSON will contain values for X and Y
+     * coordinates. These values are required for SigmaJS to render the
+     * vertices. maxXY is the maximum value X or Y can have.
+     * @param indent The indent for JSON string
+     * @return a JSON string that can be used to visualize the graph using
+     * SigmaJS library.
+     */
+    public String getJSON(int processOnly, int maxXY, int indent) {
+
+        if (processOnly == -1) {
+            processOnly = vertices.size();
+        }
+
+        //Populate
+        int boundingLimit = processOnly / 2;
+        //Create subsets
+        LinkedHashMap<Integer, String> verticesSubMap = new LinkedHashMap();
+        ArrayList<Integer> processedVertices = new ArrayList();
+
+        Iterator iter = vertices.keySet().iterator();
+
+        int count = 0;
+        while (iter.hasNext()) {
+            if (count == processOnly) {
+                break;
+            }
+
+            int key = (int) iter.next();
+            String value = vertices.get(key);
+            verticesSubMap.put(key, value);
+            processedVertices.add(key);
+            count++;
+        }
+
+        JSONArray nodesArray = new JSONArray();
+
+        count = 0;
+
+        for (int VID : verticesSubMap.keySet()) {
+            //Check bounding limt
+            int boundingMaxX = 0;
+            int boundingMaxY = 0;
+            int boundingMinX = 0;
+            int boundingMinY = 0;
+            if (count > boundingLimit) {
+                boundingMaxX = maxXY;
+                boundingMaxY = maxXY / 2;
+                boundingMinX = maxXY / 2;
+                boundingMinY = 0;
+            } else {
+                boundingMaxX = maxXY / 2;
+                boundingMaxY = maxXY / 2;
+                boundingMinX = 0;
+                boundingMinY = 0;
+            }
+
+            String vertexName = verticesSubMap.get(VID);
+            JSONObject nodeObject = new JSONObject();
+            nodeObject.put("id", "" + VID);
+            nodeObject.put("label", vertexName);
+            nodeObject.put("x", getRandomInt(boundingMinX, boundingMaxX));
+            nodeObject.put("y", getRandomInt(boundingMinY, boundingMaxY));
+            nodeObject.put("size", 2);
+            nodesArray.put(nodeObject);
+
+            count++;
+        }
+
+        JSONArray edgesArray = new JSONArray();
+
+        edges.keySet().forEach((Integer EID) -> {
+            LinkedHashMap connectionsMap = edges.get(EID);
+            int sourceID = (int) connectionsMap.get("S");
+            int destID = (int) connectionsMap.get("D");
+            if (processedVertices.contains(sourceID) && processedVertices.contains(destID)) {
+                JSONObject edgeObject = new JSONObject();
+                edgeObject.put("id", "" + EID);
+                edgeObject.put("source", "" + sourceID);
+                edgeObject.put("target", "" + destID);
+
+                edgesArray.put(edgeObject);
+            }
+        });
+
+        JSONObject graphOuterWrapper = new JSONObject();
+        graphOuterWrapper.put("nodes", nodesArray);
+        graphOuterWrapper.put("edges", edgesArray);
+
+        return graphOuterWrapper.toString(indent);
+    }
+
     /**
      * A static utility function to convert any text file to FastGraph files
      *
@@ -246,7 +350,6 @@ public class FastGraph {
             fis.close();
 
             //System.out.println("Populated vertices: " + verticesMap.size());
-
             //Second pass
             fis = new FileInputStream(inputTextFile);
             scanner = new Scanner(fis);
@@ -896,11 +999,11 @@ public class FastGraph {
         //the original list
         ArrayList dup_edgeList1 = new ArrayList();
         dup_edgeList1.addAll(edgeList1);
-        
+
         ArrayList edgeList2 = edgesHelper.get(VID2);
         ArrayList dup_edgeList2 = new ArrayList();
         dup_edgeList2.addAll(edgeList2);
-        
+
         dup_edgeList1.retainAll(dup_edgeList2);
 
         return !dup_edgeList1.isEmpty(); //Not directly connected
