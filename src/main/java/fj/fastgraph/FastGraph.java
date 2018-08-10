@@ -333,7 +333,13 @@ public class FastGraph {
             while (scanner.hasNextLine()) {
                 String line = scanner.nextLine();
                 //System.out.println(line);
-                StringTokenizer stok = new StringTokenizer(line, " ");
+                String delimeter = " ";
+                if (line.contains(",")) {
+                    delimeter = ",";
+                }
+                line = line.replaceAll("\"", "");
+
+                StringTokenizer stok = new StringTokenizer(line, delimeter);
                 while (stok.hasMoreTokens()) {
                     String token = stok.nextToken().trim();
                     if (!verticesMap.containsKey(token)) {
@@ -358,7 +364,12 @@ public class FastGraph {
 
             while (scanner.hasNextLine()) {
                 String line = scanner.nextLine();
-                StringTokenizer stok = new StringTokenizer(line, " ");
+                String delimeter = " ";
+                if (line.contains(",")) {
+                    delimeter = ",";
+                }
+                line = line.replaceAll("\"", "");
+                StringTokenizer stok = new StringTokenizer(line, delimeter);
                 String prevToken = "";
                 int tokenCount = 0;
                 while (stok.hasMoreTokens()) {
