@@ -646,8 +646,17 @@ public class FastGraph {
         if (VID1 == -1) {
             return cyclicPaths;
         }
-        ArrayList edgesList = edgesHelper.get(VID1);
-
+        
+        ArrayList edgesList;
+        if(edgesHelper.containsKey(VID1)){
+            //Edges availble
+            edgesList = edgesHelper.get(VID1);
+        }
+        else{
+            //Orphaned vertices
+            return cyclicPaths;
+        }
+        
         for (int i = 0; i < edgesList.size(); i++) {
             int EID = (int) edgesList.get(i);
             //Get vertices for this edge
