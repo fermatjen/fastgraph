@@ -279,7 +279,7 @@ public class FastGraph {
             if (processOneVertexOnly) {
                 rankedVertices = new LinkedHashMap();
                 //Spoof a rank
-                System.out.println("Processing only for " + vertexID);
+                //System.out.println("Processing only for " + vertexID);
                 rankedVertices.put(vertexID, 100);
             } else {
                 rankedVertices = getRankByTrianglesCount(topRanksOnly);
@@ -366,7 +366,8 @@ public class FastGraph {
             String vertexName = verticesSubMap.get(VID);
             JSONObject nodeObject = new JSONObject();
             nodeObject.put("id", "" + VID);
-            nodeObject.put("label", vertexName);
+            int trianglesCount  = getTrianglesCountForVertex(VID);
+            nodeObject.put("label", vertexName+" ("+trianglesCount+")");
             nodeObject.put("x", getRandomInt(boundingMinX, boundingMaxX));
             nodeObject.put("y", getRandomInt(boundingMinY, boundingMaxY));
             nodeObject.put("size", 1);
