@@ -272,12 +272,11 @@ public class FastGraph {
         if (processOnly == -1) {
             processOnly = vertices.size();
         }
-        Map rankedVertices = null;
+        Map rankedVertices = new LinkedHashMap();
         Map<Integer, Integer> rankedNeighborVertices = new LinkedHashMap();
 
         if (forRankedVerticesOnly || processOneVertexOnly) {
             if (processOneVertexOnly) {
-                rankedVertices = new LinkedHashMap();
                 //Spoof a rank
                 //System.out.println("Processing only for " + vertexID);
                 rankedVertices.put(vertexID, 100);
@@ -895,6 +894,7 @@ public class FastGraph {
         //If hotspots are available and not corrupted, return the hotspots instead
         //as they already contain the traingles count.
         if (hotSpots.size() == edgesHelper.size()) {
+            System.out.println("Hotspots in synch with edges");
             LinkedHashMap<Integer, Integer> resultsMap = new LinkedHashMap();
 
             Iterator iter = hotSpots.keySet().iterator();
@@ -919,10 +919,12 @@ public class FastGraph {
             rankedMap.put(VID, trianglesCount);
         });
 
-        //Update internal hotspots
-        hotSpots = rankedMap;
+        
 
         Map<Integer, Integer> sortedNeighborsMap = sortByComparator(rankedMap, false);
+        //Update internal hotspots
+        hotSpots = new LinkedHashMap();
+        hotSpots.putAll(sortedNeighborsMap);
 
         LinkedHashMap<Integer, Integer> resultsMap = new LinkedHashMap();
 
