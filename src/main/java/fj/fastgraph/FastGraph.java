@@ -97,6 +97,11 @@ public class FastGraph {
                 StringTokenizer stok = new StringTokenizer(line, token);
                 int VID = Integer.parseInt(stok.nextToken().trim());
                 String vertex = stok.nextToken().trim();
+                //Clean
+                vertex = vertex.replaceAll("[^\\w\\s]", "").trim();
+                if (vertex.length() < 1) {
+                    vertex = "EMPTY";
+                }
                 reverse_vertices.put(vertex, VID);
                 vertices.put(VID, vertex);
             }
@@ -211,8 +216,41 @@ public class FastGraph {
         return new Random().nextInt(maxInt - minInt) + minInt;
     }
 
+    public String exportDotForGraph(int processOnly) {
+
+        Iterator iter = edges.keySet().iterator();
+        String dotString = "graph FastGraph {\r\n";
+
+        int count = 0;
+        while (iter.hasNext()) {
+
+            if (count == processOnly) {
+                break;
+            }
+            int EID = (int) iter.next();
+            LinkedHashMap connectionsMap = edges.get(EID);
+            String source = getVertexByID((int) connectionsMap.get("S"));
+            String dest = getVertexByID((int) connectionsMap.get("D"));
+
+            //Write undirected graphs
+            //if (source.matches(".*\\d+.*") || source.toLowerCase().contains("graph") || source.toLowerCase().contains("edge") || source.toLowerCase().contains("node") || source.toLowerCase().contains("attr") || source.toLowerCase().contains("strict")) {
+            source = "\"" + source + "\"";
+            //}
+            //if (dest.matches(".*\\d+.*") || dest.toLowerCase().contains("graph") || dest.toLowerCase().contains("edge")  || dest.toLowerCase().contains("node") || dest.toLowerCase().contains("attr") || dest.toLowerCase().contains("strict")) {
+            dest = "\"" + dest + "\"";
+            //}
+            dotString = dotString + "    " + source + " -- " + dest + ";\r\n";
+            count++;
+        }
+
+        dotString = dotString + "\r\n}";
+
+        return dotString;
+    }
+
     /**
      * Get the JSON representation of one vertex and all its neighbors
+     *
      * @param vertexID The Vertex ID of the graph and all its children will be
      * exported.
      * @param processOnly Maximum number of vertices to convert to JSON. If -1,
@@ -224,12 +262,13 @@ public class FastGraph {
      * @return a JSON string that can be used to visualize the graph using
      * SigmaJS library.
      */
-    public String getJSONForVertex(int vertexID, int processOnly, int maxXY, int indent) {
+    public String exportJSONForVertex(int vertexID, int processOnly, int maxXY, int indent) {
         return getJSON(processOnly, maxXY, indent, false, -1, true, vertexID);
     }
 
     /**
      * Get the JSON representation of the current graph
+     *
      * @param processOnly Maximum number of vertices to convert to JSON. If -1,
      * the whole graph is converted into a JSON.
      * @param maxXY The exported JSON will contain values for X and Y
@@ -243,7 +282,7 @@ public class FastGraph {
      * @return a JSON string that can be used to visualize the graph using
      * SigmaJS library.
      */
-    public String getJSONForGraph(int processOnly, int maxXY, int indent, boolean forRankedVerticesOnly, int topRanksOnly) {
+    public String exportJSONForGraph(int processOnly, int maxXY, int indent, boolean forRankedVerticesOnly, int topRanksOnly) {
         return getJSON(processOnly, maxXY, indent, forRankedVerticesOnly, topRanksOnly, false, -1);
     }
 
@@ -365,8 +404,8 @@ public class FastGraph {
             String vertexName = verticesSubMap.get(VID);
             JSONObject nodeObject = new JSONObject();
             nodeObject.put("id", "" + VID);
-            int trianglesCount  = getTrianglesCountForVertex(VID);
-            nodeObject.put("label", vertexName+" ("+trianglesCount+")");
+            int trianglesCount = getTrianglesCountForVertex(VID);
+            nodeObject.put("label", vertexName + " (" + trianglesCount + ")");
             nodeObject.put("x", getRandomInt(boundingMinX, boundingMaxX));
             nodeObject.put("y", getRandomInt(boundingMinY, boundingMaxY));
             nodeObject.put("size", 1);
@@ -646,17 +685,16 @@ public class FastGraph {
         if (VID1 == -1) {
             return cyclicPaths;
         }
-        
+
         ArrayList edgesList;
-        if(edgesHelper.containsKey(VID1)){
+        if (edgesHelper.containsKey(VID1)) {
             //Edges availble
             edgesList = edgesHelper.get(VID1);
-        }
-        else{
+        } else {
             //Orphaned vertices
             return cyclicPaths;
         }
-        
+
         for (int i = 0; i < edgesList.size(); i++) {
             int EID = (int) edgesList.get(i);
             //Get vertices for this edge
@@ -927,8 +965,6 @@ public class FastGraph {
             int trianglesCount = getTrianglesCountForVertex(VID);
             rankedMap.put(VID, trianglesCount);
         });
-
-        
 
         Map<Integer, Integer> sortedNeighborsMap = sortByComparator(rankedMap, false);
         //Update internal hotspots
